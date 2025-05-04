@@ -1,0 +1,72 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.9
+    commands:
+      # Install required tools
+      - curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
+      - sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
+      - sudo apt-get update && sudo apt-get install -y terraform
+      - curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+      - chmod +x kubectl
+      - sudo mv kubectl /usr/local/bin/
+      - curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+      - chmod 700 get_helm.sh
+      - ./get_helm.sh
+      - rm get_helm.sh
+      - aws --version
+      - terraform --version
+      - kubectl version --client
+      - helm version
+
+  pre_build:
+    commands:
+      # Configure AWS credentials
+      - aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+      - aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+      - aws configure set default.region $AWS_DEFAULT_REGION
+      - aws configure set default.output json
+
+  build:
+    commands:
+      # Initialize Terraform
+      - cd terraform-eks
+      - terraform init
+      
+      # Plan and apply Terraform configuration
+      - terraform plan -out=tfplan
+      - terraform apply -auto-approve tfplan
+      
+      # Configure kubectl
+      - aws eks --region $AWS_DEFAULT_REGION update-kubeconfig --name $(terraform output -raw cluster_name)
+      
+      # Wait for nodes to be ready
+      - kubectl wait --for=condition=Ready nodes --all --timeout=300s
+      
+      # Verify deployments
+      - kubectl get deployments -A
+      - kubectl get pods -A
+
+  post_build:
+    commands:
+      # Get LoadBalancer IP for Nginx
+      - echo "Nginx LoadBalancer IP:"
+      - kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+      
+      # Get Grafana credentials
+      - echo "Grafana credentials:"
+      - echo "Username: admin"
+      - echo "Password: prom-operator"
+
+artifacts:
+  files:
+    - '**/*'
+  name: eks-deployment-$(date +%Y-%m-%d-%H-%M-%S)
+
+cache:
+  paths:
+    - '/root/.terraform/**/*'
+    - '/root/.kube/**/*'
+    - '/root/.helm/**/*' 
