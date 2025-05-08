@@ -1,4 +1,9 @@
+*.vscode*
 # Local .terraform directories
+iac-terraform/accounts/*.terraform/
+iac-terraform/accounts/*.terraform*
+iac-terraform/environment/*.terraform*
+iac-terraform/environment/*.terraform*
 **/.terraform/*
 
 # .tfstate files

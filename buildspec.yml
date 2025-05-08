@@ -1,0 +1,53 @@
+version: 0.2
+phases:
+  install:
+    runtime-versions:
+      java: corretto8
+    commands:
+      - echo "Installing jq..."
+      - curl -qL -o jq https://github.com/jqlang/jq/releases/download/jq-1.6/jq-linux64 && chmod +x ./jq
+      - echo Executing Terraform phase
+      - wget https://releases.hashicorp.com/terraform/1.9.5/terraform_1.9.5_linux_amd64.zip
+      - unzip terraform_1.9.5_linux_amd64.zip
+      - ls -lrt
+      - mv terraform /bin
+      - terraform -v
+      - cd $CODEBUILD_SRC_DIR
+      - cd $CODEBUILD_SRC_DIR/iac-terraform/accounts/proglint/
+      #- cd $CODEBUILD_SRC_DIR/iac-terraform/environments/dev/
+      - echo "Configuring AWS credentials"
+      - aws sts get-caller-identity  
+      - terraform -v
+      - terraform init
+      - terraform fmt 
+      - terraform validate
+      - terraform plan
+      #- terraform state pull
+      #- terraform output -json > terraform_outputs.json
+      #- cat terraform_outputs.json
+      # - echo "Running Terraform plan..."
+      # - terraform plan -out=tfplan -lock=false 
+      # - echo "Saving Terraform plan as JSON..."
+      # - terraform show -json tfplan > tfplan.json
+      # - cat tfplan.json
+      #- terraform state pull
+      #- terraform output -json > terraform_outputs.json
+      #- cat terraform_outputs.json
+
+      # - terraform state pull | grep vpc_id
+      #- terraform 0.12upgrade -yes
+      #- terraform -v
+      #- -verify-plugins=false
+      # - terraform output -raw vpc_id
+      # - terraform output -json subnet_ids | jq -r '.[]'
+
+  build:
+    commands:
+      - echo Executing build phase
+      - ls -lt $CODEBUILD_SRC_DIR
+      #- terraform plan -target=module.proglint_dev -lock=false  
+      #- terraform apply -auto-approve -target=module.proglint_dev -lock=false  
+      
+  post_build:
+    commands:
+      - echo post build phase
